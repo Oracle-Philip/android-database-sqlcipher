@@ -1,0 +1,101 @@
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath 'com.android.tools.build:gradle:7.3.1'
+    classpath "gradle.plugin.org.ec4j.gradle:editorconfig-gradle-plugin:0.0.3"
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+ext {
+  project.ext.sqlcipherCFlags = "-DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=2"
+
+  if(project.hasProperty('sqlcipherAndroidClientVersion')) {
+    clientVersionNumber = "${sqlcipherAndroidClientVersion}"
+  } else {
+    clientVersionNumber = "UndefinedBuildNumber"
+  }
+  mavenPackaging = "aar"
+  mavenGroup = "net.zetetic"
+  mavenArtifactId = "android-database-sqlcipher"
+  mavenLocalRepositoryPrefix = "file://"
+  if(project.hasProperty('publishLocal') && publishLocal.toBoolean()){
+    mavenSnapshotRepositoryUrl = "outputs/snapshot"
+    mavenReleaseRepositoryUrl = "outputs/release"
+  } else {
+    mavenLocalRepositoryPrefix = ""
+    mavenSnapshotRepositoryUrl = "https://oss.sonatype.org/content/repositories/snapshots"
+    mavenReleaseRepositoryUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+  }
+  if(project.hasProperty('publishSnapshot') && publishSnapshot.toBoolean()){
+    mavenVersionName = "${clientVersionNumber}-SNAPSHOT"
+  } else {
+    mavenVersionName = "${clientVersionNumber}"
+  }
+  if(project.hasProperty('nexusUsername')){
+    nexusUsername = "${nexusUsername}"
+  }
+  if(project.hasProperty('nexusPassword')){
+    nexusPassword = "${nexusPassword}"
+  }
+  mavenPomDescription = "SQLCipher for Android is a plugin to SQLite that provides full database encryption."
+  mavenPomUrl = "https://www.zetetic.net/sqlcipher"
+  mavenScmUrl = "https://github.com/sqlcipher/android-database-sqlcipher.git"
+  mavenScmConnection = "scm:git:https://github.com/sqlcipher/android-database-sqlcipher.git"
+  mavenScmDeveloperConnection = "scm:git:https://github.com/sqlcipher/android-database-sqlcipher.git"
+  mavenLicenseUrl = "https://www.zetetic.net/sqlcipher/license/"
+  mavenDeveloperName = "Zetetic Support"
+  mavenDeveloperEmail = "support@zetetic.net"
+  mavenDeveloperOrganization = "Zetetic LLC"
+  mavenDeveloperUrl = "https://www.zetetic.net"
+  minimumAndroidSdkVersion = 21
+  minimumAndroid64BitSdkVersion = 21
+  targetAndroidSdkVersion = 26
+  compileAndroidSdkVersion = 26
+  mainProjectName = "android-database-sqlcipher"
+  nativeRootOutputDir = "${projectDir}/${mainProjectName}/src/main"
+  if(project.hasProperty('sqlcipherRoot')) {
+    sqlcipherDir = "${sqlcipherRoot}"
+  }
+  if(project.hasProperty('opensslAndroidNativeRoot') && "${opensslAndroidNativeRoot}") {
+    androidNativeRootDir = "${opensslAndroidNativeRoot}"
+  } else {
+    androidNativeRootDir = "${nativeRootOutputDir}/external/android-libs"
+  }
+  if(project.hasProperty('opensslRoot')) {
+    opensslDir = "${opensslRoot}"
+  }
+  if(project.hasProperty('debugBuild') && debugBuild.toBoolean()) {
+    otherSqlcipherCFlags = "-fstack-protector-all"
+    ndkBuildType="NDK_DEBUG=1"
+  } else {
+    otherSqlcipherCFlags = "-DLOG_NDEBUG -fstack-protector-all"
+    ndkBuildType="NDK_DEBUG=0"
+  }
+  if(project.hasProperty('sqlcipherCFlags')
+     && project.sqlcipherCFlags?.trim()
+     && project.sqlcipherCFlags?.contains('SQLITE_HAS_CODEC')
+     && project.sqlcipherCFlags?.contains('SQLITE_TEMP_STORE')) {
+       sqlcipherCFlags = "${sqlcipherCFlags}"
+  } else {
+    if(!project.gradle.startParameter.taskNames.toString().contains('clean')){
+      throw new InvalidUserDataException("SQLCIPHER_CFLAGS environment variable must be specified and include at least '-DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=2'")
+    }
+  }
+}
+
+task clean(type: Delete) {
+  delete rootProject.buildDir
+}

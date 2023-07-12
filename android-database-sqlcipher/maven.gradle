@@ -1,0 +1,99 @@
+apply plugin: "maven-publish"
+apply plugin: "signing"
+import org.gradle.plugins.signing.Sign
+
+def isReleaseBuild() {
+  return mavenVersionName.contains("SNAPSHOT") == false
+}
+
+def getReleaseRepositoryUrl() {
+  return hasProperty('mavenReleaseRepositoryUrl') ? mavenReleaseRepositoryUrl
+  : "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+}
+
+def getSnapshotRepositoryUrl() {
+  if(hasProperty('mavenLocalRepositoryPrefix')) {
+    return "${mavenLocalRepositoryPrefix}${buildDir}/${mavenSnapshotRepositoryUrl}"
+  } else {
+    return hasProperty('mavenSnapshotRepositoryUrl') ? mavenSnapshotRepositoryUrl
+    : "https://oss.sonatype.org/content/repositories/snapshots/"
+  }
+}
+
+def getRepositoryUsername() {
+  return hasProperty('nexusUsername') ? nexusUsername : ""
+}
+
+def getRepositoryPassword() {
+  return hasProperty('nexusPassword') ? nexusPassword : ""
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+  if (taskGraph.allTasks.any { it instanceof Sign }) {
+    allprojects { ext."signing.keyId" = "${signingKeyId}" }
+    allprojects { ext."signing.secretKeyRingFile" = "${signingKeyRingFile}" }
+    allprojects { ext."signing.password" = "${signingKeyPassword}" }
+  }
+}
+
+
+
+afterEvaluate { project ->
+  publishing {
+    publications {
+      mavenJava(MavenPublication) {
+        from components.release
+        groupId = mavenGroup
+        artifactId = mavenArtifactId
+        version = mavenVersionName
+        pom {
+          name = mavenArtifactId
+          description = mavenPomDescription
+          url = mavenPomUrl
+          licenses {
+            license {
+              url = mavenLicenseUrl
+            }
+          }
+          developers {
+            developer {
+              name = mavenDeveloperName
+              email = mavenDeveloperEmail
+            }
+          }
+          scm {
+            connection = mavenScmConnection
+            developerConnection = mavenScmDeveloperConnection
+            url = mavenScmUrl
+          }
+        }
+      }
+    }
+    repositories {
+        maven {
+            def repoUrl = isReleaseBuild()
+                ? getReleaseRepositoryUrl()
+                : getSnapshotRepositoryUrl()
+            url = repoUrl
+            credentials {
+                    username = getRepositoryUsername()
+                    password = getRepositoryPassword()
+            }
+        }
+      }
+  }
+
+  signing {
+    required { isReleaseBuild() && gradle.taskGraph.hasTask("publish") }
+    sign publishing.publications.mavenJava
+  }
+
+  task androidSourcesJar(type: Jar) {
+    classifier = "sources"
+    from android.sourceSets.main.java.sourceFiles
+  }
+
+  artifacts {
+    archives androidSourcesJar
+  }
+}
